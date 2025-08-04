@@ -9,7 +9,7 @@
 <body>
   <!-- Variables -->
   <?php
-  $name = "Liaqat Ali";
+  $name = "Liaqat Ali-test 2";
   echo "Hi $name, welcome to PHP!";
   ?>
 </body>
