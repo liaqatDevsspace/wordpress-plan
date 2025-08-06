@@ -1,0 +1,12 @@
+.project-meta-wrapper {
+  display: flex;
+  gap: 20px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.project-meta-wrapper p,
+.project-meta-wrapper h4 {
+  margin: 0;
+}
