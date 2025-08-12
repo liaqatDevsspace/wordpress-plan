@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Book Plugin
+Plugin Name: Library Plugin
 Description: A plugin to manage books(CPTs).
 Version: 1.0.0
 Author: Liaqat Ali
@@ -14,6 +14,7 @@ if (!defined('ABSPATH')) {
 //registering genre & author taxonomy
 function w2d6_register_book_taxonomies()
 {
+    //genre taxonomy
     $genre_labels = array(
         'name' => _x('Genres', 'taxonomy general name', 'book-plugin'),
         'singular_name' => _x('Genre', 'taxonomy singular name', 'book-plugin'),
@@ -40,7 +41,7 @@ function w2d6_register_book_taxonomies()
 
     register_taxonomy('genre', array('book'), $genre_args);
 
-    //author toxonomy
+    //author toxonomy   
     $author_labels = array(
         'name' => _x('Authors', 'taxonomy general name', 'book-plugin'),
         'singular_name' => _x('Author', 'taxonomy singular name', 'book-plugin'),
@@ -104,10 +105,77 @@ function register_books_cpt()
         'has_archive' => true,
         'supports' => array('title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'),
         'show_in_rest' => true, // Enable REST API support
+        // this book cpt uses its own capabilities now
+        'capability_type' => 'book',
+        'map_meta_cap'    => true,
 
     ));
 }
 add_action('init', 'register_books_cpt');
+
+//adding capabilities for book cpt to admin users
+function add_book_caps_to_admin() {
+    $role = get_role('administrator');
+    if ($role) {
+        $caps = [
+            'edit_book',
+            'read_book',
+            'delete_book',
+            'edit_books',
+            'edit_others_books',
+            'publish_books',
+            'read_private_books',
+            'delete_books',
+            'delete_private_books',
+            'delete_published_books',
+            'delete_others_books',
+            'edit_private_books',
+            'edit_published_books',
+        ];
+        foreach ($caps as $cap) {
+            $role->add_cap($cap);
+        }
+    }
+}
+register_activation_hook(__FILE__, 'manage_book_user_caps');
+function manage_book_user_caps() {
+    // Add capabilities to admin role
+    add_book_caps_to_admin();
+
+    // Add book manager role
+    add_book_manager_role();
+}
+//adding manager role for book cpt
+function add_book_manager_role() {
+    // Capabilities for Book Manager
+    $caps = [
+        'read' => true,
+        'edit_book' => true,
+        'read_book' => true,
+        'delete_book' => true,
+        'edit_books' => true,
+        'edit_others_books' => false, // ❌ Can't edit other users' books
+        'publish_books' => true,
+        'read_private_books' => false, // ❌ Can't read private books
+        'delete_books' => true,
+        'delete_private_books' => false,
+        'delete_published_books' => true,
+        'delete_others_books' => false,
+        'edit_private_books' => false,
+        'edit_published_books' => true,
+    ];
+
+    // Create role only if it doesn't already exist
+    if ( ! get_role( 'book_manager' ) ) {
+        add_role(
+            'book_manager',          // Role ID
+            'Book Manager',          // Display name
+            $caps                    // Capabilities array
+        );
+    }
+}
+
+
 
 //adding custom meta box for book details
 // Hook to add the meta box
@@ -151,3 +219,44 @@ add_action('save_post_book', function ($post_id) {
         update_post_meta($post_id, '_book_isbn', sanitize_text_field($_POST['book_isbn_field']));
     }
 });
+
+
+// adding filters for taxonomies
+add_action('restrict_manage_posts', 'add_taxonomy_filters_to_books_admin');
+
+function add_taxonomy_filters_to_books_admin() {
+    global $typenow;
+
+    if ($typenow == 'book') { // your CPT slug
+        // Array of taxonomies to add filters for
+        $taxonomies = ['genre', 'book-author'];
+
+        foreach ($taxonomies as $taxonomy_slug) {
+            $taxonomy_obj = get_taxonomy($taxonomy_slug);
+            $terms = get_terms([
+                'taxonomy' => $taxonomy_slug,
+                'hide_empty' => false,
+            ]);
+            if (!$terms || is_wp_error($terms)) {
+                continue;
+            }
+
+            $current_v = isset($_GET[$taxonomy_slug]) ? $_GET[$taxonomy_slug] : '';
+
+            echo '<select name="' . esc_attr($taxonomy_slug) . '" id="' . esc_attr($taxonomy_slug) . '" class="postform">';
+            echo '<option value="">' . sprintf(esc_html__('All %s', 'textdomain'), $taxonomy_obj->labels->name) . '</option>';
+
+            foreach ($terms as $term) {
+                printf(
+                    '<option value="%s"%s>%s (%d)</option>',
+                    esc_attr($term->slug),
+                    selected($current_v, $term->slug, false),
+                    esc_html($term->name),
+                    intval($term->count)
+                );
+            }
+
+            echo '</select>';
+        }
+    }
+}
