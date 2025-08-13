@@ -35,7 +35,6 @@ function bookstore_payment_init() {
     // Include the main Bookstore class
     require_once plugin_dir_path( __FILE__ ) . 'bookstore-payment-class.php';
 
-    // Initialize the Bookstore class
-    Bookstore::init();
+ 
 }
 ?>
